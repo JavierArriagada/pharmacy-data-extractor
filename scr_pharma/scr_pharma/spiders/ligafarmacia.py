@@ -1,62 +1,89 @@
-import json
 import scrapy
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import NoSuchElementException, ElementClickInterceptedException
+from webdriver_manager.firefox import GeckoDriverManager
 import time
 
 class LigaFarmaciaSpider(scrapy.Spider):
     name = 'ligafarmacia'
     allowed_domains = ['ligafarmacia.cl']
-    start_urls = ['https://ligafarmacia.cl/medicamentos/']
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        chrome_options = Options()
-        # chrome_options.add_argument("--headless")  # Uncomment for headless execution
-        service = Service(ChromeDriverManager().install())
-        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        options = Options()
+        #options.headless = True  # Uncomment to run in headless mode
+        self.driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()), options=options)
+        self.start_urls = ['https://ligafarmacia.cl/medicamentos/']
+
+    def start_requests(self):
+        for url in self.start_urls:
+            yield scrapy.Request(url=url, callback=self.parse, dont_filter=True)
 
     def parse(self, response):
         self.driver.get(response.url)
+        while True:
+            time.sleep(3)  # Wait for JavaScript to load contents
+            self.extract_products()
+
+            next_button = self.get_next_page_button()
+            if next_button:
+                try:
+                    self.driver.execute_script("arguments[0].click();", next_button)
+                except ElementClickInterceptedException:
+                    self.driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
+                    self.driver.execute_script("arguments[0].click();", next_button)
+            else:
+                break
+
+    def extract_products(self):
+        products = self.driver.find_elements(By.XPATH, "//div[@class='product-wrap mb-25']")
+        for product in products:
+            print(product)
+            product_url, product_name, brand, price = self.extract_product_details(product)
+            yield {
+                'product_url': product_url,
+                'product_name': product_name,
+                'brand': brand,
+                'price': price
+            }
+
+    def extract_product_details(self, product):
         try:
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, 'body'))
-            )
-            # Extract cookies and set them for subsequent requests
-            cookies = self.driver.get_cookies()
-            for cookie in cookies:
-                self.driver.add_cookie(cookie)
+            product_url = product.find_element(By.XPATH, ".//a").get_attribute('href')
+        except NoSuchElementException:
+            product_url = 'No URL'
+        try:
+            product_name = product.find_element(By.XPATH, ".//p[contains(@class, 'nombre')]").text
+        except NoSuchElementException:
+            product_name = 'No name'
+        try:
+            brand = product.find_element(By.XPATH, ".//p[contains(@class, 'laboratorio')]").text
+        except NoSuchElementException:
+            brand = 'No brand'
+        try:
+            price = product.find_element(By.XPATH, ".//p[contains(@class, 'precio')]").text
+        except NoSuchElementException:
+            price = 'No price'
+                    
+        return product_url, product_name, brand, price
 
-            # Make an API call
-            api_url = "https://firestore.googleapis.com/google.firestore.v1.Firestore/Listen/channel?gsessionid=tor616kGmxDQJf-Bd4nv_GGshHOpEitSLmZFWywDduY&VER=8&database=projects%2Ffarmstore-744f9%2Fdatabases%2F(default)&RID=rpc&SID=7Ktx25Pmb_KxUOJ4T8k1KQ&AID=10&CI=1&TYPE=xmlhttp&zx=4ugg7ozfyql0&t=1"
-            self.driver.get(api_url)
-            WebDriverWait(self.driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, 'body'))
-            )
-            data = json.loads(self.driver.find_element(By.TAG_NAME, 'body').text)
-
-            # Process data from API
-            for doc_change in data[1][1]:
-                if 'documentChange' in doc_change:
-                    doc = doc_change['documentChange']['document']
-                    fields = doc['fields']
-                    yield {
-                        'sku': fields['sku']['arrayValue']['values'][0]['mapValue']['fields']['kinf2']['stringValue'],
-                        'product_name': fields['sku']['arrayValue']['values'][0]['mapValue']['fields']['nombre_medicamento']['stringValue'],
-                        'stock': fields['sku']['arrayValue']['values'][0]['mapValue']['fields']['stock']['integerValue'],
-                        'descripcion': fields['sku']['arrayValue']['values'][0]['mapValue']['fields']['descripcion']['stringValue'],
-                        'precio': fields['sku']['arrayValue']['values'][0]['mapValue']['fields']['precio']['integerValue']
-                    }
-        except Exception as e:
-            self.logger.error(f"Error loading page: {str(e)}")
-        finally:
-            self.driver.quit()
+    def get_next_page_button(self):
+        try:
+            current_page = self.driver.find_element(By.XPATH, "//li[@class='page-item active']")
+            next_page = current_page.find_element(By.XPATH, "following-sibling::li[@class='page-item null']")
+            
+            if next_page:
+                try:
+                    next_button = next_page.find_element(By.XPATH, ".//button")
+                except NoSuchElementException:
+                    next_button = next_page.find_element(By.XPATH, ".//a")
+                return next_button
+        except NoSuchElementException:
+            return None
+        return None
 
     def closed(self, reason):
-        if self.driver.service.is_running:
-            self.driver.quit()
+        self.driver.quit()
