@@ -1,3 +1,5 @@
+# ahumada_spider.py
+
 import scrapy
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -6,21 +8,22 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 import time
+from scrapy.loader import ItemLoader
+from datetime import datetime
+from ..items import ScrPharmaItem  # Asegúrate de tener la ruta correcta
 
 class AhumadaSpider(scrapy.Spider):
     name = 'ahumada'
     allowed_domains = ['farmaciasahumada.cl']
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         options = Options()
-        #options.headless = True  # Uncomment to run in headless mode
+        options.headless = True
         self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
         self.categories = [
             'dispositivos-medicos-primeros-auxilios'
-            #'medicamentos-enfermedades-especificas',
-            #'medicamentos-sistema-nervioso' 
-            ]
+        ]
         self.current_category_index = 0
 
     def start_requests(self):
@@ -43,18 +46,18 @@ class AhumadaSpider(scrapy.Spider):
                 try:
                     products = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'product-tile')]//div[contains(@class, 'product-tile h-100')]")
                     for product in products:
-                        # Extract product details with error handling
+                        loader = ItemLoader(item=ScrPharmaItem(), selector=product)
                         brand, product_url, product_name, price, price_internet = self.extract_product_details(product)
-                        yield {
-                            'brand': brand,
-                            'product_url': product_url,
-                            'product_name': product_name,
-                            'price': price,
-                            'price_internet': price_internet,
-                            'category': category
-                        }
+                        loader.add_value('brand', brand)
+                        loader.add_value('url', product_url)
+                        loader.add_value('name', product_name)
+                        loader.add_value('price', price)
+                        loader.add_value('price_sale', price_internet)
+                        loader.add_value('category', category)
+                        loader.add_value('timestamp', datetime.now())
+                        loader.add_value('spider_name', self.name)
+                        yield loader.load_item()
                 except NoSuchElementException:
-                    # Handle the case where the product list itself is not found
                     break
                 
                 more_button = self.driver.find_elements(By.XPATH, "//button[contains(@class, 'more')]")

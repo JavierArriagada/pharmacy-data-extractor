@@ -10,6 +10,11 @@ from selenium.common.exceptions import WebDriverException, NoSuchElementExceptio
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
+from scrapy.loader import ItemLoader
+from datetime import datetime
+from ..items import ScrPharmaItem 
+
+
 class CruzVerdeSpider(scrapy.Spider):
     name = 'cruzverde'
     allowed_domains = ['cruzverde.cl']
@@ -98,20 +103,21 @@ class CruzVerdeSpider(scrapy.Spider):
                     product_code, cat_code = image_link.split('/')[-1].split('-', 1)
                     cat_code = cat_code.split('.jpg')[0]
                     product_url = f"https://www.cruzverde.cl/{cat_code}/{product_code}.html"
-                    yield {
-                        'category_path': ' > '.join(category_path),
-                        'category_url': category_url,
-                        'product_name': product.get('productName'),
-                        'image_url': image_link,
-                        'category_id': category_id,
-                        'price_list_cl': product.get('prices', {}).get('price-list-cl'),
-                        'price_sale_cl': product.get('prices', {}).get('price-sale-cl'),
-                        'brand': product.get('brand'),
-                        'product_url': product_url
-                    }
+                    
+                    loader = ItemLoader(item=ScrPharmaItem())
+                    loader.add_value('name', product.get('productName', 'Unknown Product Name'))
+                    loader.add_value('url', product_url)
+                    loader.add_value('category', ' > '.join(category_path))
+                    loader.add_value('price', product.get('prices', {}).get('price-list-cl', '0'))
+                    loader.add_value('price_sale', product.get('prices', {}).get('price-sale-cl', '0'))
+                    loader.add_value('brand', product.get('brand', 'Unknown Brand'))
+                    loader.add_value('timestamp', datetime.now())
+                    loader.add_value('spider_name', self.name)
+                    yield loader.load_item()
 
         except Exception as e:
             self.logger.error(f"Error loading category page: {str(e)}")
+
 
     def closed(self, reason):
         self.driver.quit()

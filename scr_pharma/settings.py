@@ -67,8 +67,10 @@ DOWNLOADER_MIDDLEWARES = {
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     "scr_pharma.pipelines.ScrPharmaPipeline": 300,
-    #"scr_pharma.pipelines.CruzVerdePipeline": 300,
+    
 }
+
+ENABLE_DATABASE_INSERTION = True
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
