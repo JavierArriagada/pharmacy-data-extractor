@@ -1,5 +1,3 @@
-# ahumada_spider.py
-
 import scrapy
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -10,7 +8,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import time
 from scrapy.loader import ItemLoader
 from datetime import datetime
-from ..items import ScrPharmaItem  # Asegúrate de tener la ruta correcta
+from ..items import ScrPharmaItem 
 
 class AhumadaSpider(scrapy.Spider):
     name = 'ahumada'
@@ -18,13 +16,22 @@ class AhumadaSpider(scrapy.Spider):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        options = Options()
-        options.headless = True
-        self.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        chrome_options = Options()
+        #chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
+        service = Service(ChromeDriverManager().install())
+        self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.categories = [
-            'dispositivos-medicos-primeros-auxilios'
+            'medicamentos',
+            'belleza',
+            'higiene-y-cuidado-personal',
+            'dermocosmetica',
+            'vitaminas-y-suplementos',
+            'infantil-y-maternidad',
+            'dispositivos-medicos',
+            'bebidas-y-alimentos',
+            'mundo-mascota',
+            'recetario-magistral'
         ]
-        self.current_category_index = 0
 
     def start_requests(self):
         yield scrapy.Request(url='https://www.farmaciasahumada.cl', callback=self.parse, dont_filter=True)
@@ -32,19 +39,23 @@ class AhumadaSpider(scrapy.Spider):
     def parse(self, response):
         self.driver.get(response.url)
         base_url = 'https://www.farmaciasahumada.cl/on/demandware.store/Sites-ahumada-cl-Site/default/Search-UpdateGrid'
-        
-        while self.current_category_index < len(self.categories):
-            category = self.categories[self.current_category_index]
+
+        for category in self.categories:
             start = 0
-            size = 12
-            
-            url = f"{base_url}?cgid={category}&start={start}&sz={size}"
-            self.driver.get(url)
+            size = 48
             
             while True:
+                url = f"{base_url}?cgid={category}&start={start}&sz={size}"
+                self.driver.get(url)
                 time.sleep(3)  # Wait for JavaScript to load contents
+                
                 try:
                     products = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'product-tile')]//div[contains(@class, 'product-tile h-100')]")
+                    
+                    if not products:
+                        print(f"No products found for category {category}, breaking the loop.")
+                        break
+                    
                     for product in products:
                         loader = ItemLoader(item=ScrPharmaItem(), selector=product)
                         brand, product_url, product_name, price, price_internet = self.extract_product_details(product)
@@ -57,7 +68,9 @@ class AhumadaSpider(scrapy.Spider):
                         loader.add_value('timestamp', datetime.now())
                         loader.add_value('spider_name', self.name)
                         yield loader.load_item()
+                
                 except NoSuchElementException:
+                    print(f"No products found due to NoSuchElementException for category {category}, breaking the loop.")
                     break
                 
                 more_button = self.driver.find_elements(By.XPATH, "//button[contains(@class, 'more')]")
@@ -67,10 +80,6 @@ class AhumadaSpider(scrapy.Spider):
 
                 more_button[0].click()
                 start += size
-                url = f"{base_url}?cgid={category}&start={start}&sz={size}"
-                self.driver.get(url)
-            
-            self.current_category_index += 1
 
     def extract_product_details(self, product):
         try:
@@ -86,11 +95,11 @@ class AhumadaSpider(scrapy.Spider):
         try:
             price = product.find_element(By.XPATH, ".//span[@class = 'sales']//span").text
         except NoSuchElementException:
-            price = 'No price'
+            price = '0'
         try:
             price_internet = product.find_element(By.XPATH, ".//del//span//span[@class='value']").get_attribute('content')
         except NoSuchElementException:
-            price_internet = 'No internet price'
+            price_internet = '0'
         return brand, product_url, product_name, price, price_internet
 
     def closed(self, reason):
