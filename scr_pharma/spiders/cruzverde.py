@@ -73,9 +73,8 @@ class CruzVerdeSpider(scrapy.Spider):
 
             category_id = response.meta['category_id']
             category_path = response.meta['category_path']
-            category_url = response.meta['category_url']
             offset = 0
-            limit = 12
+            limit = 48
 
             # Obtener el total de productos en la primera iteración
             api_url = f"https://api.cruzverde.cl/product-service/products/search?limit={limit}&offset={offset}&sort=&q=&refine[]=cgid={category_id}&inventoryId=zona308&inventoryZone=zona308"
