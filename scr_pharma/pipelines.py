@@ -9,23 +9,26 @@ class ScrPharmaPipeline:
     def __init__(self):
         settings = get_project_settings()
         self.enable_database_insertion = settings.getbool('ENABLE_DATABASE_INSERTION', True)
-        self.engine = create_engine(SQLALCHEMY_DATABASE_URI)
-        self.Session = sessionmaker(bind=self.engine)
-        metadata = MetaData()
-        self.pharma_table = Table('scr_pharma', metadata,
-            Column('id', Integer, primary_key=True, autoincrement=True),
-            Column('name', String),
-            Column('url', String, unique=True),
-            Column('category', String),
-            Column('price', Float),
-            Column('price_sale', Float),
-            Column('brand', String),
-            Column('timestamp', DateTime),
-            Column('spider_name', String),
-            autoload_with=self.engine)
-        metadata.create_all(self.engine)
+        
         self.items_to_process = []
         self.products_seen = {}  # Diccionario para gestionar URLs vistas
+        
+        if self.enable_database_insertion:
+            self.engine = create_engine(SQLALCHEMY_DATABASE_URI)
+            self.Session = sessionmaker(bind=self.engine)
+            metadata = MetaData()
+            self.pharma_table = Table('scr_pharma', metadata,
+                Column('id', Integer, primary_key=True, autoincrement=True),
+                Column('name', String),
+                Column('url', String, unique=True),
+                Column('category', String),
+                Column('price', Float),
+                Column('price_sale', Float),
+                Column('brand', String),
+                Column('timestamp', DateTime),
+                Column('spider_name', String),
+                autoload_with=self.engine)
+            metadata.create_all(self.engine)
 
     def process_item(self, item, spider):
         if spider.name == "cruzverde":
@@ -39,7 +42,8 @@ class ScrPharmaPipeline:
         else:
             # Procesamiento inmediato para otros spiders
             self.write_to_csv(item, spider.name)
-            self.insert_into_database(item)
+            if self.enable_database_insertion:
+                self.insert_into_database(item)
             return item
 
     def close_spider(self, spider):
@@ -53,7 +57,8 @@ class ScrPharmaPipeline:
                     writer.writerow([item['name'], item['url'], item['category'], 
                                      item['price'], item['price_sale'], item['brand'], 
                                      item['timestamp'], item['spider_name']])
-            self.insert_into_database()
+            if self.enable_database_insertion:
+                self.insert_into_database()
 
     def write_to_csv(self, item, spider_name):
         # Escribir inmediatamente al CSV para spiders que no son 'cruzverde'
