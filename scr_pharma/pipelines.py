@@ -1,3 +1,4 @@
+import os
 from sqlalchemy import create_engine, Table, Column, Integer, String, Float, MetaData, DateTime
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -24,6 +25,8 @@ class ScrPharmaPipeline:
                 Column('category', String),
                 Column('price', Float),
                 Column('price_sale', Float),
+                Column('price_benef', Float),  # New field
+                Column('code', String),  # New field
                 Column('brand', String),
                 Column('timestamp', DateTime),
                 Column('spider_name', String),
@@ -51,22 +54,22 @@ class ScrPharmaPipeline:
             # Procesamiento de lotes al final del spider
             file_path = f'datafolder/{spider.name}_{datetime.now().strftime("%Y_%m_%d")}.csv'
             with open(file_path, 'w', newline='', encoding='utf-8') as file:
-                writer = csv.writer(file)
-                writer.writerow(['name', 'url', 'category', 'price', 'price_sale', 'brand', 'timestamp', 'spider_name'])
+                writer = csv.DictWriter(file, fieldnames=next(iter(self.products_seen.values())).keys())
+                writer.writeheader()  # Write column names as the first row
                 for item in self.products_seen.values():
-                    writer.writerow([item['name'], item['url'], item['category'], 
-                                     item['price'], item['price_sale'], item['brand'], 
-                                     item['timestamp'], item['spider_name']])
+                    writer.writerow(item)
             if self.enable_database_insertion:
                 self.insert_into_database()
 
     def write_to_csv(self, item, spider_name):
-        # Escribir inmediatamente al CSV para spiders que no son 'cruzverde'
-        with open(f'datafolder/{spider_name}_{datetime.now().strftime("%Y_%m_%d")}.csv', 'a', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            writer.writerow([item.get('name'), item.get('url'), item.get('category'), 
-                             item.get('price'), item.get('price_sale'), item.get('brand'), 
-                             item.get('timestamp', datetime.now()), item.get('spider_name')])
+        file_path = f'datafolder/{spider_name}_{datetime.now().strftime("%Y_%m_%d")}.csv'
+        # Check if file exists to decide whether to write headers
+        file_exists = os.path.isfile(file_path)
+        with open(file_path, 'a', newline='', encoding='utf-8') as file:
+            writer = csv.DictWriter(file, fieldnames=item.fields.keys())
+            if not file_exists:
+                writer.writeheader()  # Write header only if the file is new
+            writer.writerow(item)
 
     def insert_into_database(self, item=None):
         if not self.enable_database_insertion:
@@ -75,25 +78,12 @@ class ScrPharmaPipeline:
         try:
             if item:
                 # Insertar un solo ítem directamente en la base de datos
-                insert_stmt = self.pharma_table.insert().values(
-                    name=item.get('name'),
-                    url=item.get('url'),
-                    category=item.get('category'),
-                    price=item.get('price'),
-                    price_sale=item.get('price_sale'),
-                    brand=item.get('brand'),
-                    timestamp=item.get('timestamp', datetime.now()),
-                    spider_name=item.get('spider_name')
-                )
+                insert_stmt = self.pharma_table.insert().values({field: item.get(field) for field in item.fields.keys()})  # Dynamic fields
                 session.execute(insert_stmt)
             else:
                 # Insertar por lotes para el spider 'cruzverde' al final
                 for item in self.products_seen.values():
-                    insert_stmt = self.pharma_table.insert().values(
-                        name=item['name'], url=item['url'], category=item['category'],
-                        price=item['price'], price_sale=item['price_sale'], brand=item['brand'],
-                        timestamp=item['timestamp'], spider_name=item['spider_name']
-                    )
+                    insert_stmt = self.pharma_table.insert().values({field: item[field] for field in item.fields.keys()})  # Dynamic fields
                     session.execute(insert_stmt)
             session.commit()
         except Exception as e:
