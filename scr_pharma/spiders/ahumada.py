@@ -17,7 +17,7 @@ class AhumadaSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         chrome_options = Options()
-        #chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
+        chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.categories = [
@@ -62,8 +62,8 @@ class AhumadaSpider(scrapy.Spider):
                         loader.add_value('brand', brand)
                         loader.add_value('url', product_url)
                         loader.add_value('name', product_name)
-                        loader.add_value('price', price)
-                        loader.add_value('price_sale', price_internet)
+                        loader.add_value('price', price_internet)
+                        loader.add_value('price_sale', price)
                         loader.add_value('category', category)
                         loader.add_value('timestamp', datetime.now())
                         loader.add_value('spider_name', self.name)
