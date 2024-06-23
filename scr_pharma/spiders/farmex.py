@@ -3,18 +3,20 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 from scrapy.loader import ItemLoader
 from datetime import datetime
 from ..items import ScrPharmaItem
+from selenium.common.exceptions import TimeoutException
 
 class FarmexSpider(scrapy.Spider):
     name = 'farmex'
     allowed_domains = ['farmex.cl']
     start_urls = ['https://farmex.cl/']
-    base_url = 'https://farmex.cl/collections/'
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -22,58 +24,61 @@ class FarmexSpider(scrapy.Spider):
         # chrome_options.add_argument("--headless")  # Uncomment for headless execution
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        
-        self.categories = ['analgesicos']
 
     def start_requests(self):
         for url in self.start_urls:
-            yield scrapy.Request(url=url, callback=self.parse, dont_filter=True)
+            yield scrapy.Request(url=url, callback=self.parse_categories, dont_filter=True)
 
-    def parse(self, response):
+    def parse_categories(self, response):
         self.driver.get(response.url)
         time.sleep(5)  # Wait for JavaScript to load contents
-        for category in self.categories:
-            url = f"{self.base_url}{category}"
-            self.driver.get(url)
-            time.sleep(5)  # Wait for JavaScript to load contents
-            
-            while True:
-                try:
-                    products = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'product-grid-item')]")
-                    if not products:
-                        print("No products found, breaking the loop.")
-                        break
+        category_elements = self.driver.find_elements(By.XPATH, "//ul[@class='nav main-nav']//li[@class='dropdown'][1]//ul[@class='dropdown-menu']//li[@class='dropdown dropdown-submenu']//a[@class='dropdown-link']")
+        for element in category_elements:
+            category_url = element.get_attribute('href')
+            category_name = category_url.split('/')[-1]  # Extracting category from the URL
+            yield scrapy.Request(url=category_url, callback=self.parse, meta={'category_name': category_name}, dont_filter=True)
 
-                    for product in products:
-                        loader = ItemLoader(item=ScrPharmaItem(), selector=product)
-                        brand, product_url, product_name, price, price_sale, price_benef, sku = self.extract_product_details(product)
-                        loader.add_value('brand', brand)
-                        loader.add_value('url', product_url)
-                        loader.add_value('name', product_name)
-                        loader.add_value('price', price)
-                        loader.add_value('price_sale', price_sale)
-                        loader.add_value('price_benef', price_benef)
-                        loader.add_value('code', sku)
-                        loader.add_value('category', category)
-                        loader.add_value('timestamp', datetime.now())
-                        loader.add_value('spider_name', self.name)
-                        yield loader.load_item()
-
-                except NoSuchElementException:
-                    print("No products found due to NoSuchElementException, breaking the loop.")
+    def parse(self, response):
+        category = response.meta['category_name']
+        self.driver.get(response.url)
+        time.sleep(5)  # Wait for JavaScript to load contents
+        while True:
+            try:
+                products = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'product-grid-item')]")
+                if not products:
+                    print("No products found, breaking the loop.")
                     break
 
-                # Add pagination logic here if required
-                #self.scroll_to_pagination()
+                for product in products:
+                    loader = ItemLoader(item=ScrPharmaItem(), selector=product)
+                    brand, product_url, product_name, price, price_sale, price_benef, sku = self.extract_product_details(product)
+                    loader.add_value('brand', brand)
+                    loader.add_value('url', product_url)
+                    loader.add_value('name', product_name)
+                    loader.add_value('price', price)
+                    loader.add_value('price_sale', price_sale)
+                    loader.add_value('price_benef', price_benef)
+                    loader.add_value('code', sku)
+                    loader.add_value('category', category)
+                    loader.add_value('timestamp', datetime.now())
+                    loader.add_value('spider_name', self.name)
+                    yield loader.load_item()
 
-                # Handling pagination
-                next_page_button = self.get_next_page_button()
-                if next_page_button:
-                    self.driver.execute_script("arguments[0].click();", next_page_button)
-                    time.sleep(5)  # Wait for the page to load
-                else:
-                    print("No more pages to navigate.")
-                    break
+            except NoSuchElementException:
+                print("No products found due to NoSuchElementException, breaking the loop.")
+                break
+
+            # Add pagination logic here if required
+            #self.scroll_to_pagination()
+
+            # Handling pagination
+            next_page_button = self.get_next_page_button()
+            if next_page_button:
+                self.driver.execute_script("arguments[0].click();", next_page_button)
+                time.sleep(5)  # Wait for the page to load
+            else:
+                print("No more pages to navigate.")
+                break
                 
                 
     def extract_product_details(self, product):
