@@ -8,6 +8,8 @@ CREATE TABLE `scr_pharma` (
   `brand` VARCHAR(255) NOT NULL,
   `timestamp` DATETIME NOT NULL,
   `spider_name` VARCHAR(255) NOT NULL,
+  `code` VARCHAR(255),
+  `price_benef` DECIMAL(10,2),
   PRIMARY KEY (`id`),
   UNIQUE KEY `url_unique` (`url`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
