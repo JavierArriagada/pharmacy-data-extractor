@@ -74,22 +74,21 @@ class LigaFarmaciaSpider(scrapy.Spider):
                     print("No products found due to NoSuchElementException, breaking the loop.")
                     break
 
-                '''self.scroll_to_pagination()
-
+                # Navegación a la siguiente página
+                time.sleep(5)
+                self.scroll_to_pagination()
+                time.sleep(5)
                 next_page_button = self.get_next_page_button()
                 if next_page_button:
                     try:
-                        WebDriverWait(self.driver, 10).until(
-                            EC.element_to_be_clickable(next_page_button)
-                        )
                         self.driver.execute_script("arguments[0].click();", next_page_button)
-                        time.sleep(5)  # Wait for the page to load
+                        time.sleep(5)  # Espera a que la página se cargue
                     except Exception as e:
                         print(f"Error clicking next page button: {str(e)}")
                         break
                 else:
                     print("No more pages to navigate.")
-                    break'''
+                    break
 
     def extract_product_details(self, product):
         try:
@@ -113,24 +112,23 @@ class LigaFarmaciaSpider(scrapy.Spider):
         sku = '0' # Adjust this XPath to retrieve sku price if available
         return brand, product_url, product_name, price, price_sale, price_benef, sku
         
-    '''
+    
     def scroll_to_pagination(self):
         try:
-            pagination_element = self.driver.find_element(By.XPATH, "//nav[@class='pagination-container']")
+            pagination_element = self.driver.find_element(By.XPATH, "//div[contains(@class, 'pagination')]")
             self.driver.execute_script("arguments[0].scrollIntoView(true);", pagination_element)
-            WebDriverWait(self.driver, 10).until(
-                EC.visibility_of(pagination_element)
-            )
+            WebDriverWait(self.driver, 10).until(EC.visibility_of(pagination_element))
         except (NoSuchElementException, TimeoutException):
             print("Pagination element not found or not visible.")
 
     def get_next_page_button(self):
         try:
-            active_page = self.driver.find_element(By.XPATH, "//li[@class='page-item active']")
+            active_page = self.driver.find_element(By.XPATH, "//li[contains(@class, 'page-item active')]")
             next_page = active_page.find_element(By.XPATH, "following-sibling::li[1]//a")
-            return next_page
+            if next_page:
+                return next_page
         except NoSuchElementException:
             return None
-    '''
+    
     def closed(self, reason):
         self.driver.quit()
