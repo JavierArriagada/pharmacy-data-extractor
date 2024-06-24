@@ -138,7 +138,7 @@ class SalcobrandSpider(scrapy.Spider):
 
     def extract_product_details(self, product):
         try:
-            brand = 'Default Brand'  # Adjust according to the site's structure if needed
+            brand = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//span[contains(@class, 'product-name truncate')]").text
         except NoSuchElementException:
             brand = 'No brand'
         try:
@@ -153,11 +153,17 @@ class SalcobrandSpider(scrapy.Spider):
             product_name = 'No name'
             sku = 'No SKU'
         try:
-            price = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'sale-price secondary-price')]//span").text
+            price_sale = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'sale-price secondary-price')]//span").text
+        except NoSuchElementException:
+            price_sale = '0'
+        try:
+            price = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'original-price')]//span").text
         except NoSuchElementException:
             price = '0'
-        price_benef = '0'  # Adjust this XPath to retrieve benefit price if available
-        price_sale = '0'  # Adjust this XPath to retrieve benefit price if available
+        try:
+            price_benef = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'internet-sale-price')]//span").text
+        except NoSuchElementException:
+            price_benef = '0' 
         
         return brand, product_url, product_name, price, price_sale, price_benef, sku
     
