@@ -109,8 +109,15 @@ class FarmexSpider(scrapy.Spider):
             print(f"Error closing popup: {str(e)}")
 
     def parse_pages(self, response, category):
-        self.logger.info(f"Non-collection category detected: {category}. This is a placeholder for future implementation.")
-        yield from ()             
+        self.driver.get(response.url)
+        time.sleep(2)  # Wait for JavaScript to load contents
+        self.close_popup()
+
+        # Extract items from the single page
+        items = list(self.extract_page_items(category))
+        
+        for item in items:
+            yield item           
                 
     def extract_product_details(self, product):
         try:
@@ -140,5 +147,42 @@ class FarmexSpider(scrapy.Spider):
         brand = 'brand'
         return brand, product_url, product_name, price, price_sale, price_benef, sku
     
+    def extract_page_items(self, category):
+        products = self.driver.find_elements(By.XPATH, "//div[@class='item-content']")
+        for product in products:
+            loader = ItemLoader(item=ScrPharmaItem(), selector=product)
+            brand, product_url, product_name, price, price_sale, price_benef, sku = self.extract_page_product_details(product)
+            loader.add_value('brand', brand)
+            loader.add_value('url', product_url)
+            loader.add_value('name', product_name)
+            loader.add_value('price', price)
+            loader.add_value('price_sale', price_sale)
+            loader.add_value('price_benef', price_benef)
+            loader.add_value('code', sku)
+            loader.add_value('category', category)
+            loader.add_value('timestamp', datetime.now())
+            loader.add_value('spider_name', self.name)
+            yield loader.load_item()
+
+    def extract_page_product_details(self, product):
+        try:
+            product_name_element = product.find_element(By.XPATH, ".//a[contains(@class, 'product-title')]")
+            product_url = product_name_element.get_attribute('href')
+            product_name = product_name_element.text
+        except NoSuchElementException:
+            product_url = 'No URL'
+            product_name = 'No name'
+        try:
+            price_element = product.find_element(By.XPATH, ".//span[contains(@class, 'product-price')]")
+            price = price_element.text
+            price_sale = 'No sale price'  # Update this if sale price extraction logic is different
+        except NoSuchElementException:
+            price = 'No price'
+            price_sale = 'No sale price'
+
+        price_benef = '0'  # Adjust this XPath to retrieve benefit price if available
+        sku = '0'  # Adjust this XPath to retrieve sku if available
+        brand = 'brand'
+        return brand, product_url, product_name, price, price_sale, price_benef, sku
     def closed(self, reason):
         self.driver.quit()
