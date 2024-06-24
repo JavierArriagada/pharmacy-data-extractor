@@ -21,7 +21,7 @@ class FarmexSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         chrome_options = Options()
-        # chrome_options.add_argument("--headless")  # Uncomment for headless execution
+        chrome_options.add_argument("--headless")  # Uncomment for headless execution
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.action = ActionChains(self.driver)

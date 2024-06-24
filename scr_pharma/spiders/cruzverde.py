@@ -61,9 +61,9 @@ class CruzVerdeSpider(scrapy.Spider):
             self.processed_categories.add(category_id)
             yield scrapy.Request(full_url, callback=self.load_category_page, meta={'category_path': new_path, 'category_id': category_id, 'category_url': full_url})
 
-        if 'categories' in category:
+        '''if 'categories' in category:
             for subcategory in category['categories']:
-                yield from self.extract_category(subcategory, new_path)
+                yield from self.extract_category(subcategory, new_path)'''
 
     def load_category_page(self, response):
         try:
@@ -104,12 +104,14 @@ class CruzVerdeSpider(scrapy.Spider):
                     product_url = f"https://www.cruzverde.cl/{cat_code}/{product_code}.html"
                     
                     loader = ItemLoader(item=ScrPharmaItem())
+                    loader.add_value('brand', product.get('brand', 'Unknown Brand'))
                     loader.add_value('name', product.get('productName', 'Unknown Product Name'))
-                    loader.add_value('url', product_url)
-                    loader.add_value('category', ' > '.join(category_path))
+                    loader.add_value('url', product_url)                    
                     loader.add_value('price', product.get('prices', {}).get('price-list-cl', '0'))
                     loader.add_value('price_sale', product.get('prices', {}).get('price-sale-cl', '0'))
-                    loader.add_value('brand', product.get('brand', 'Unknown Brand'))
+                    loader.add_value('price_benef', '0')
+                    loader.add_value('code', product.get('productId', 'Unknown Product Name'))
+                    loader.add_value('category', ' > '.join(category_path))                    
                     loader.add_value('timestamp', datetime.now())
                     loader.add_value('spider_name', self.name)
                     yield loader.load_item()

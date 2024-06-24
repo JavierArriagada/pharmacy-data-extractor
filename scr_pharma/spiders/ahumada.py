@@ -18,7 +18,7 @@ class AhumadaSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         chrome_options = Options()
-        #chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
+        chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.categories = [

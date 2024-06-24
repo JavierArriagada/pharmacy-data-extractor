@@ -18,12 +18,12 @@ class ProfarSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         chrome_options = Options()
-        # chrome_options.add_argument("--headless")  # Uncomment for headless execution
+        chrome_options.add_argument("--headless")  # Uncomment for headless execution
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.categories = [
-            'medicamentos',
             'dermocosmetica',
+            'medicamentos',            
             'belleza',
             'cuidado-personal',
             'salud-animal'
@@ -97,17 +97,14 @@ class ProfarSpider(scrapy.Spider):
     def extract_product_details(self, product):
         try:
             product_url = product.find_element(By.XPATH, ".//a").get_attribute('href')
+            sku = product_url.split('/')[-2].split('-')[-1]
         except NoSuchElementException:
             product_url = 'No URL'
+            sku = 'No SKU'
         try:
             product_name = product.find_element(By.XPATH, ".//article//div[12]//span").text
         except NoSuchElementException:
             product_name = 'No name'
-        '''try:
-            brand = product.find_element(By.XPATH, ".//div[contains(@class, 'product-brand')]").text
-        except NoSuchElementException:
-            brand = 'No brand' 
-            '''
         try:
             price = product.find_element(By.XPATH, ".//article//div[14]//span[contains(@class,'sellingPriceValue')]").text
         except NoSuchElementException:
@@ -117,9 +114,7 @@ class ProfarSpider(scrapy.Spider):
         except NoSuchElementException:
             price_sale = 'No price'
         price_benef = '0'  # Adjust this XPath to retrieve benefit price if available
-        price_sale = '0'  # Adjust this XPath to retrieve sale price if available
-        sku = '0'  # Adjust this XPath to retrieve SKU if available
-        brand = 'Profar'
+        brand = 'No brand'
         return brand, product_url, product_name, price, price_sale, price_benef, sku
     
     def closed(self, reason):
