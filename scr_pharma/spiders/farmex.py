@@ -173,9 +173,10 @@ class FarmexSpider(scrapy.Spider):
             product_url = 'No URL'
             product_name = 'No name'
         try:
-            price_element = product.find_element(By.XPATH, ".//span[contains(@class, 'product-price')]")
+            price_element = product.find_element(By.XPATH, ".//span[contains(@class, 'product-compare-price')]")
             price = price_element.text
-            price_sale = 'No sale price'  # Update this if sale price extraction logic is different
+            price_sale_element = product.find_element(By.XPATH, ".//span[contains(@class, 'product-price')]")
+            price_sale = price_sale_element.text
         except NoSuchElementException:
             price = 'No price'
             price_sale = 'No sale price'
