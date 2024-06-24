@@ -1,3 +1,4 @@
+import re
 import scrapy
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -17,7 +18,7 @@ class AhumadaSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         chrome_options = Options()
-        chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
+        #chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
         self.categories = [
@@ -58,12 +59,14 @@ class AhumadaSpider(scrapy.Spider):
                     
                     for product in products:
                         loader = ItemLoader(item=ScrPharmaItem(), selector=product)
-                        brand, product_url, product_name, price, price_internet = self.extract_product_details(product)
+                        brand, product_url, product_name, price, price_sale, price_benef, sku = self.extract_product_details(product)
                         loader.add_value('brand', brand)
                         loader.add_value('url', product_url)
                         loader.add_value('name', product_name)
-                        loader.add_value('price', price_internet)
-                        loader.add_value('price_sale', price)
+                        loader.add_value('price', price)
+                        loader.add_value('price_sale', price_sale)
+                        loader.add_value('price_benef', price_benef)
+                        loader.add_value('code', sku)
                         loader.add_value('category', category)
                         loader.add_value('timestamp', datetime.now())
                         loader.add_value('spider_name', self.name)
@@ -97,10 +100,19 @@ class AhumadaSpider(scrapy.Spider):
         except NoSuchElementException:
             price = '0'
         try:
-            price_internet = product.find_element(By.XPATH, ".//del//span//span[@class='value']").get_attribute('content')
+            price_sale = product.find_element(By.XPATH, ".//del//span//span[@class='value']").get_attribute('content')
         except NoSuchElementException:
-            price_internet = '0'
-        return brand, product_url, product_name, price, price_internet
+            price_sale = '0'
+        price_benef = '0' 
+        
+        # Extract SKU from the URL
+        sku_match = re.search(r'-(\d+)\.html$', product_url)
+        if sku_match:
+            sku = sku_match.group(1)
+        else:
+            sku = '0'
+        
+        return brand, product_url, product_name, price, price_sale, price_benef, sku
 
     def closed(self, reason):
         self.driver.quit()
