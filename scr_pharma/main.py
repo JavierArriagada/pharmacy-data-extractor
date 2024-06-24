@@ -3,8 +3,7 @@ import time
 from time import strftime
 
 base_dir = 'datafolder/'
-#spiders = ['cruzverde', 'ahumada', 'salcobrand', 'profar', 'ligafarmacia', 'farmex']  # Asegúrate de que el nombre del spider sea correcto
-spiders = ['cruzverde']
+spiders = ['cruzverde', 'ahumada', 'salcobrand', 'profar', 'ligafarmacia', 'farmex'] 
 
 if not os.path.exists(base_dir):
     os.makedirs(base_dir)
@@ -12,10 +11,6 @@ if not os.path.exists(base_dir):
 total_start_time = time.time()
 
 for spider in spiders:
-    #filename = f'{base_dir}{spider}_{strftime("%Y_%m_%d")}.csv'
-    #if os.path.exists(filename):
-        #os.remove(filename)
-    #command = f'scrapy crawl {spider} -o {filename}'
     command = f'scrapy crawl {spider}'
     start_time = time.time()
     os.system(command)
