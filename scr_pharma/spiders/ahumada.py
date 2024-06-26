@@ -96,11 +96,11 @@ class AhumadaSpider(scrapy.Spider):
             product_url = 'No URL'
             product_name = 'No name'
         try:
-            price = product.find_element(By.XPATH, ".//span[@class = 'sales']//span").text
+            price = product.find_element(By.XPATH, ".//del//span//span[@class='value']").get_attribute('content')
         except NoSuchElementException:
             price = '0'
         try:
-            price_sale = product.find_element(By.XPATH, ".//del//span//span[@class='value']").get_attribute('content')
+            price_sale = product.find_element(By.XPATH, ".//span[@class = 'sales']//span").text
         except NoSuchElementException:
             price_sale = '0'
         price_benef = '0' 
