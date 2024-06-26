@@ -97,7 +97,9 @@ class ProfarSpider(scrapy.Spider):
     def extract_product_details(self, product):
         try:
             product_url = product.find_element(By.XPATH, ".//a").get_attribute('href')
-            sku = product_url.split('/')[-2].split('-')[-1]
+            sku_part = product_url.split('/')[-2].split('-')[-1]
+            # Check if SKU is numeric
+            sku = sku_part if sku_part.isnumeric() else 'No SKU'
         except NoSuchElementException:
             product_url = 'No URL'
             sku = 'No SKU'
@@ -105,16 +107,27 @@ class ProfarSpider(scrapy.Spider):
             product_name = product.find_element(By.XPATH, ".//article//div[12]//span").text
         except NoSuchElementException:
             product_name = 'No name'
+
+        # Try to find the normal price or sale price
         try:
             price = product.find_element(By.XPATH, ".//article//div[14]//span[contains(@class,'sellingPriceValue')]").text
         except NoSuchElementException:
-            price = 'No price'
+            price = '0'
         try:
             price_sale = product.find_element(By.XPATH, ".//article//div[14]//span[contains(@class,'listPriceValue')]").text
         except NoSuchElementException:
-            price_sale = 'No price'
+            price_sale = '0'
+
+        # Fallback for price if both normal and sale prices are missing
+        if price == '0' and price_sale == '0':
+            sku = 'No SKU'
+            try:
+                price = product.find_element(By.XPATH, "//div[contains(@class, 'priceWithoutStock')]//span").text
+            except NoSuchElementException:
+                price = '0'
+
         price_benef = '0'  # Adjust this XPath to retrieve benefit price if available
-        brand = 'No brand'
+        brand = self.name
         return brand, product_url, product_name, price, price_sale, price_benef, sku
     
     def closed(self, reason):
