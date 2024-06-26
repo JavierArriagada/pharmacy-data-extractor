@@ -152,19 +152,37 @@ class SalcobrandSpider(scrapy.Spider):
             product_url = 'No URL'
             product_name = 'No name'
             sku = 'No SKU'
-        try:
-            price_sale = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'sale-price secondary-price')]//span").text
-        except NoSuchElementException:
-            price_sale = '0'
-        try:
-            price = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'original-price')]//span").text
-        except NoSuchElementException:
-            price = '0'
+        
         try:
             price_benef = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'internet-sale-price')]//span").text
         except NoSuchElementException:
-            price_benef = '0' 
+            price_benef = '0'
         
+        if price_benef != '0':
+            try:
+                price_sale = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'sale-price secondary-price')]//span").text
+            except NoSuchElementException:
+                price_sale = '0'
+            try:
+                price = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'original-price')]//span").text
+            except NoSuchElementException:
+                price = '0'
+        else:
+            try:
+                price_sale = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'sale-price')]//span").text
+            except NoSuchElementException:
+                price_sale = '0'
+            if price_sale == '0':
+                try:
+                    price = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'sale-price')]//span").text
+                except NoSuchElementException:
+                    price = '0'
+            else:
+                try:
+                    price = product.find_element(By.XPATH, ".//div[contains(@class, 'info')]//a//div[contains(@class, 'product-prices')]//div[contains(@class, 'original-price')]//span").text
+                except NoSuchElementException:
+                    price = '0'
+
         return brand, product_url, product_name, price, price_sale, price_benef, sku
     
     def get_next_page_button(self):
