@@ -1,11 +1,12 @@
+import re
 from scrapy import Item, Field
 from itemloaders.processors import TakeFirst, MapCompose
 from datetime import datetime
 
 def safe_price(value):
     try:
-        # Eliminar símbolos de moneda y convertir a decimal
-        clean_value = str(value).replace('$', '').replace(',', '').replace('.', '').strip()
+        # Eliminar todos los caracteres que no sean números
+        clean_value = re.sub(r'\D', '', str(value))
         return float(clean_value) if clean_value else 0.0
     except Exception:
         return 0.0
