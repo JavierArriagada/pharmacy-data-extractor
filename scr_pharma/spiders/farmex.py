@@ -182,7 +182,7 @@ class FarmexSpider(scrapy.Spider):
             price_sale = 'No sale price'
 
         price_benef = '0'  # Adjust this XPath to retrieve benefit price if available
-        sku = '0'  # Adjust this XPath to retrieve sku if available
+        sku = 'No SKU'  # Adjust this XPath to retrieve sku if available
         brand = 'brand'
         return brand, product_url, product_name, price, price_sale, price_benef, sku
     def closed(self, reason):

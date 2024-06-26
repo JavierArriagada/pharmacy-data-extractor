@@ -110,7 +110,7 @@ class AhumadaSpider(scrapy.Spider):
         if sku_match:
             sku = sku_match.group(1)
         else:
-            sku = '0'
+            sku = 'No SKU'
         
         return brand, product_url, product_name, price, price_sale, price_benef, sku
 

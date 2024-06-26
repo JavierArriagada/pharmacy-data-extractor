@@ -110,7 +110,7 @@ class CruzVerdeSpider(scrapy.Spider):
                     loader.add_value('price', product.get('prices', {}).get('price-list-cl', '0'))
                     loader.add_value('price_sale', product.get('prices', {}).get('price-sale-cl', '0'))
                     loader.add_value('price_benef', '0')
-                    loader.add_value('code', product.get('productId', 'Unknown Product Name'))
+                    loader.add_value('code', product.get('productId', 'No SKU'))
                     loader.add_value('category', ' > '.join(category_path))                    
                     loader.add_value('timestamp', datetime.now())
                     loader.add_value('spider_name', self.name)
