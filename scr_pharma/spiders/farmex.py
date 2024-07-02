@@ -127,6 +127,8 @@ class FarmexSpider(scrapy.Spider):
         except NoSuchElementException:
             product_url = 'No URL'
             product_name = 'No name'
+        
+        # Extract prices and other details
         try:
             price_elements = product.find_elements(By.XPATH, ".//div[contains(@class, 'product-price')]//span")
             if len(price_elements) == 1:
@@ -142,11 +144,33 @@ class FarmexSpider(scrapy.Spider):
             price = 'No price'
             price_sale = 'No sale price'
 
-        price_benef = '0'  # Adjust this XPath to retrieve benefit price if available
-        sku = '0'  # Adjust this XPath to retrieve sku if available
-        brand = 'brand'
+        price_benef = '0'  
+        sku = 'No SKU'
+        
+        # Open product URL to extract additional information
+        self.driver.execute_script("window.open(arguments[0], '_blank');", product_url)
+        self.driver.switch_to.window(self.driver.window_handles[-1])
+        
+        try:
+            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")))
+            brand_element = self.driver.find_element(By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")
+            brand = brand_element.text
+        except NoSuchElementException:
+            brand = 'No brand'
+
+        # If price_sale is "Sin Stock" or does not exist, extract price from the product page
+        if price_sale == 'No sale price' or "Sin Stock" in price_sale:
+            try:
+                WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-price']//div[@class='detail-price']")))
+                price = self.driver.find_element(By.XPATH, "//div[@class='product-price']//div[@class='detail-price']").text
+            except NoSuchElementException:
+                price = 'No price'
+        
+        self.driver.close()
+        self.driver.switch_to.window(self.driver.window_handles[0])
+        
         return brand, product_url, product_name, price, price_sale, price_benef, sku
-    
+
     def extract_page_items(self, category):
         products = self.driver.find_elements(By.XPATH, "//div[@class='item-content']")
         for product in products:
@@ -172,6 +196,8 @@ class FarmexSpider(scrapy.Spider):
         except NoSuchElementException:
             product_url = 'No URL'
             product_name = 'No name'
+        
+        # Extract prices and other details
         try:
             price_element = product.find_element(By.XPATH, ".//span[contains(@class, 'product-compare-price')]")
             price = price_element.text
@@ -181,9 +207,32 @@ class FarmexSpider(scrapy.Spider):
             price = 'No price'
             price_sale = 'No sale price'
 
-        price_benef = '0'  # Adjust this XPath to retrieve benefit price if available
-        sku = 'No SKU'  # Adjust this XPath to retrieve sku if available
-        brand = 'brand'
+        price_benef = '0'  
+        sku = 'No SKU'  
+        
+        # Open product URL to extract additional information
+        self.driver.execute_script("window.open(arguments[0], '_blank');", product_url)
+        self.driver.switch_to.window(self.driver.window_handles[-1])
+        
+        try:
+            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")))
+            brand_element = self.driver.find_element(By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")
+            brand = brand_element.text
+        except NoSuchElementException:
+            brand = 'No brand'
+
+        # If price_sale is "Sin Stock" or does not exist, extract price from the product page
+        if price_sale == 'No sale price' or "Sin Stock" in price_sale:
+            try:
+                WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-price']//div[@class='detail-price']")))
+                price = self.driver.find_element(By.XPATH, "//div[@class='product-price']//div[@class='detail-price']").text
+            except NoSuchElementException:
+                price = 'No price'
+        
+        self.driver.close()
+        self.driver.switch_to.window(self.driver.window_handles[0])
+        
         return brand, product_url, product_name, price, price_sale, price_benef, sku
+    
     def closed(self, reason):
         self.driver.quit()
