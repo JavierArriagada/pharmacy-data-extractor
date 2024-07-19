@@ -20,7 +20,7 @@ def __init__(self, *args, **kwargs):
 ### 1.2 Definición de Categorías
 Las categorías a scrapear se definen manualmente en el código del spider. Este proceso se realiza siguiendo estos pasos:
 
-![Proceso de selección de categorías en Salcobrand](../docs/images/ahumada_category_selection.png)
+![Proceso de selección de categorías en Ahumada](../docs/images/ahumada_category_selection.png)
 1. **Acceder al menú de categorías**: 
    - Visitar la página principal de Farmacias Ahumada.
    - Hacer clic en el menú principal para desplegar las categorías.
@@ -88,7 +88,7 @@ Para descubrir la API utilizada por el sitio web, seguimos estos pasos:
    - La URL típicamente tiene este formato:
      `https://www.farmaciasahumada.cl/on/demandware.store/Sites-ahumada-cl-Site/default/Search-UpdateGrid?cgid=medicamentos&start=48&sz=48`
 
-![Proceso de selección de categorías en Salcobrand](../docs/images/ahumada_find_api.png)
+![Descubrimiento de la API en Ahumada](../docs/images/ahumada_find_api.png)
 
 ### 3.2 Análisis de la API
 
@@ -157,7 +157,7 @@ El spider luego itera sobre estos elementos para extraer la información de cada
     start += size
     ```
 
-  ![Proceso de selección de categorías en Salcobrand](../docs/images/ahumada_pagination.png)
+  ![Paginación en Ahumada](../docs/images/ahumada_pagination.png)
 
 
 1. Identificamos que queremos encontrar el botón para cargar más productos.
@@ -169,7 +169,26 @@ El spider luego itera sobre estos elementos para extraer la información de cada
 ## Paso 4: Extracción de Datos de Productos
 
 En este paso, el spider extrae la información de cada producto utilizando XPaths específicos. Vamos a detallar cómo se identifica cada XPath y qué información se extrae.
-
+```python
+  products = self.driver.find_elements(By.XPATH, "//div[contains(@class, 'product-tile')]//div[contains(@class, 'product-tile h-100')]")                    
+  if not products:
+      print(f"No products found for category {category}, breaking the loop.")
+      break  
+  for product in products:
+      loader = ItemLoader(item=ScrPharmaItem(), selector=product)
+      brand, product_url, product_name, price, price_sale, price_benef, sku = self.extract_product_details(product)
+      loader.add_value('brand', brand)
+      loader.add_value('url', product_url)
+      loader.add_value('name', product_name)
+      loader.add_value('price', price)
+      loader.add_value('price_sale', price_sale)
+      loader.add_value('price_benef', price_benef)
+      loader.add_value('code', sku)
+      loader.add_value('category', category)
+      loader.add_value('timestamp', datetime.now())
+      loader.add_value('spider_name', self.name)
+      yield loader.load_item()
+```
 ### 4.1 Preparación: Acceso a la API
 
 Antes de comenzar la extracción, es importante acceder a la API explicada en el Paso 3. Al navegar a la URL de la API, se mostrará una lista de productos en un HTML simplificado, sin estilos, que contiene solo la información esencial.
@@ -180,10 +199,10 @@ Para identificar el XPath que selecciona todos los productos, seguimos estos pas
 
 0. Navegar a la URL de la API identificada en el Paso 3.
 1. Elegir un producto y hacer clic derecho -> Inspeccionar (o presionar F12).
-2. En el panel de herramientas de desarrollador, identificar el elemento div que contiene la información del producto.
+2. En el panel de herramientas de desarrollador, identificar el tag `"div"` que contiene la información del producto.
 3. Construir el XPath que selecciona todos los productos: `"//div[contains(@class, 'product-tile')]//div[contains(@class, 'product-tile h-100')]"`
 
-![Proceso de selección de categorías en Salcobrand](../docs/images/ahumada_find_products.png)
+![Selección de elementos de producto en Ahumada](../docs/images/ahumada_find_products.png)
 
 Código correspondiente:
 
@@ -197,7 +216,7 @@ Para cada detalle del producto (marca, URL, nombre, precio, etc.), seguimos un p
 
 #### 4.3.1 Extracción de la Marca
 
-![Proceso de selección de categorías en Salcobrand](../docs/images/ahumada_find_brand_xpath.png)
+![Extracción de la marca en Ahumada](../docs/images/ahumada_find_brand_xpath.png)
 
 Pasos:
 1. Localizar el elemento que contiene la marca del producto.
@@ -211,7 +230,7 @@ brand = product.find_element(By.XPATH, ".//div[@class='product-tile-brand']//spa
 
 #### 4.3.2 Extracción de la URL y Nombre del Producto
 
-![Proceso de selección de categorías en Salcobrand](../docs/images/ahumada_find_product_name_and_href_xpath.png)
+![Extracción de la URL y Nombre en Ahumada](../docs/images/ahumada_find_product_name_and_href_xpath.png)
 
 
 Pasos:
@@ -227,7 +246,7 @@ product_name = product.find_element(By.XPATH, ".//a[@class='link']").text
 
 #### 4.3.3 Extracción del Precio
 
-![Proceso de selección de categorías en Salcobrand](../docs/images/ahumada_find_price_xpath.png)
+![Extracción del Precio en humada](../docs/images/ahumada_find_price_xpath.png)
 
 Pasos:
 1. Localizar el elemento que contiene el precio del producto.
@@ -242,7 +261,7 @@ price = product.find_element(By.XPATH, ".//del//span//span[@class='value']").get
 #### 4.3.4 Extracción del Precio de Venta
 
 
-![Proceso de selección de categorías en Salcobrand](../docs/images/ahumada_find_sale_price_xpath.png)
+![Extracción del Precio de Venta en Ahumada](../docs/images/ahumada_find_sale_price_xpath.png)
 
 
 Pasos:

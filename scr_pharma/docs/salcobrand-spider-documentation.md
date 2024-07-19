@@ -211,7 +211,7 @@ En esta sección, explicaremos en detalle cómo se extraen los diferentes campos
 
 ### Extracción del Nombre del Producto
 
-![Extracción de URL y SKU en Salcobrand](../docs/images/salcobrand_find_product_name_xpath.png)
+![Extracción del Nombre del Producto en Salcobrand](../docs/images/salcobrand_find_product_name_xpath.png)
 
 1. **Identificar el elemento del nombre**: Localiza visualmente el nombre del producto.
 
