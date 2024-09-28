@@ -183,6 +183,12 @@ class SalcobrandSpider(scrapy.Spider):
                 except NoSuchElementException:
                     price = '0'
 
+        if price == '0' and price_sale != '0':
+            price = price_sale         
+              
+        if price_sale == '0':
+            price_sale = price
+
         return brand, product_url, product_name, price, price_sale, price_benef, sku
     
     def get_next_page_button(self):

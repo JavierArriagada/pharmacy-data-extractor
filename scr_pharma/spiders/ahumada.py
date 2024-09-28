@@ -102,9 +102,11 @@ class AhumadaSpider(scrapy.Spider):
         try:
             price_sale = product.find_element(By.XPATH, ".//span[@class = 'sales']//span").text
         except NoSuchElementException:
-            price_sale = '0'
+            price_sale = price
         price_benef = '0' 
         
+        if price == '0' and price_sale != '0':
+            price = price_sale
         # Extract SKU from the URL
         sku_match = re.search(r'-(\d+)\.html$', product_url)
         if sku_match:

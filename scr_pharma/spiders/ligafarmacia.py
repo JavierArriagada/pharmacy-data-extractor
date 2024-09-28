@@ -107,8 +107,9 @@ class LigaFarmaciaSpider(scrapy.Spider):
         except NoSuchElementException:
             price = 'No price'
         price_benef = '0'  # Adjust this XPath to retrieve benefit price if available
-        price_sale = '0'  # Adjust this XPath to retrieve benefit price if available
-        sku = 'No SKU'  # Adjust this XPath to retrieve sku price if available
+
+        price_sale = price 
+        sku = product_url.split('/')[-1]  # Extract SKU from URL
         return brand, product_url, product_name, price, price_sale, price_benef, sku
         
     def scroll_to_pagination(self):

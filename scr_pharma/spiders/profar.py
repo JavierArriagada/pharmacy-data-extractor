@@ -116,13 +116,14 @@ class ProfarSpider(scrapy.Spider):
         try:
             price_sale = product.find_element(By.XPATH, ".//article//div[14]//span[contains(@class,'listPriceValue')]").text
         except NoSuchElementException:
-            price_sale = '0'
+            price_sale = price
 
         # Fallback for price if both normal and sale prices are missing
         if price == '0' and price_sale == '0':
             sku = 'No SKU'
             try:
                 price = product.find_element(By.XPATH, "//div[contains(@class, 'priceWithoutStock')]//span").text
+                price_sale = price
             except NoSuchElementException:
                 price = '0'
 

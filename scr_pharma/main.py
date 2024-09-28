@@ -33,6 +33,7 @@ if SAVE_ERRORS:
 
 base_dir = 'datafolder/'
 spiders = ['cruzverde', 'ahumada', 'salcobrand', 'profar', 'ligafarmacia', 'farmex'] 
+# spiders = ['profar'] 
 if not os.path.exists(base_dir):
     os.makedirs(base_dir)
 
@@ -83,4 +84,10 @@ print(df)
 summary_csv_path = os.path.join(LOG_DIR, f"{DATE_STR}_spiders_times_summary.csv")
 df.to_csv(summary_csv_path, index=False)
 print(f'Summary saved to {summary_csv_path}')
+
+# CORRER NUEVO PROCESO DE CHROMA DB
+print(f'Init process to upload data to Chroma DB')
+subprocess.run(["python", "chroma_process.py"])
+
+
 

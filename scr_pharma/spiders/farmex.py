@@ -133,7 +133,7 @@ class FarmexSpider(scrapy.Spider):
             price_elements = product.find_elements(By.XPATH, ".//div[contains(@class, 'product-price')]//span")
             if len(price_elements) == 1:
                 price = price_elements[0].text
-                price_sale = 'No sale price'
+                price_sale = price
             elif len(price_elements) == 2:
                 price = price_elements[0].text
                 price_sale = price_elements[1].text
@@ -163,9 +163,12 @@ class FarmexSpider(scrapy.Spider):
             try:
                 WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-price']//div[@class='detail-price']")))
                 price = self.driver.find_element(By.XPATH, "//div[@class='product-price']//div[@class='detail-price']").text
+                price_sale = price
             except NoSuchElementException:
                 price = 'No price'
-        
+                
+        if price == '0' and price_sale != '0':
+            price = price_sale
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
         
