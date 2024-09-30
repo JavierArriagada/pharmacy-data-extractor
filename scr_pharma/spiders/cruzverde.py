@@ -61,9 +61,9 @@ class CruzVerdeSpider(scrapy.Spider):
             self.processed_categories.add(category_id)
             yield scrapy.Request(full_url, callback=self.load_category_page, meta={'category_path': new_path, 'category_id': category_id, 'category_url': full_url})
 
-        '''if 'categories' in category:
+        if 'categories' in category:
             for subcategory in category['categories']:
-                yield from self.extract_category(subcategory, new_path)'''
+                yield from self.extract_category(subcategory, new_path)
 
     def load_category_page(self, response):
         try:

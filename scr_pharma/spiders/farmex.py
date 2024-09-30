@@ -3,11 +3,11 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.action_chains import ActionChains
 import time
 from scrapy.loader import ItemLoader
 from datetime import datetime
@@ -21,9 +21,11 @@ class FarmexSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         chrome_options = Options()
-        chrome_options.add_argument("--headless")  # Uncomment for headless execution
+        chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        self.visited_urls = set()
+        self.processed_categories = set()
         self.action = ActionChains(self.driver)
 
     def start_requests(self):
@@ -33,17 +35,36 @@ class FarmexSpider(scrapy.Spider):
         self.driver.get(response.url)
         time.sleep(2)  # Wait for JavaScript to load contents
         self.close_popup()
-        category_elements = self.driver.find_elements(By.XPATH, "//ul[@class='nav main-nav']//li[@class='dropdown'][1]//ul[@class='dropdown-menu']//li[@class='dropdown dropdown-submenu']//a[@class='dropdown-link']")
         
-        categories = []
-        for element in category_elements:
-            category_url = element.get_attribute('href')
-            category_name = category_url.split('/')[-1]
-            categories.append((category_name, category_url))
+        # Collect all category links
+        categories = set()
         
-        # Process categories one by one
+        # List of XPaths to collect category elements
+        category_xpaths = [
+            "//ul[@class='nav main-nav']//li[@class='dropdown'][1]",
+            "//ul[@class='nav main-nav']//li[@class='dropdown'][2]",
+            "//ul[@class='nav main-nav']//li[@class='dropdown'][3]",
+            "//ul[@class='nav main-nav']//li[@class='dropdown'][5]"
+        ]
+        
+        for xpath in category_xpaths:
+            category_element = self.driver.find_element(By.XPATH, xpath)
+            # Collect all <a href=""> elements within this category element
+            a_elements = category_element.find_elements(By.XPATH, ".//a[@href]")
+            for a in a_elements:
+                category_url = a.get_attribute('href')
+                category_name =  category_url.split('/')[-1]
+                if category_url and category_url not in self.visited_urls:
+                    self.visited_urls.add(category_url)
+                    categories.add((category_name, category_url))
+        
+        # Now we have collected all the category URLs, we can process them
         for category_name, category_url in categories:
-            yield scrapy.Request(url=category_url, callback=self.parse_category, meta={'category_name': category_name, 'category_url': category_url})
+            yield scrapy.Request(
+                url=category_url,
+                callback=self.parse_category,
+                meta={'category_name': category_name, 'category_url': category_url}
+            )
 
     def parse_category(self, response):
         category = response.meta['category_name']
@@ -118,7 +139,7 @@ class FarmexSpider(scrapy.Spider):
         
         for item in items:
             yield item           
-                
+
     def extract_product_details(self, product):
         try:
             product_name_element = product.find_element(By.XPATH, ".//h5[contains(@class, 'product-name')]//a")
@@ -152,23 +173,37 @@ class FarmexSpider(scrapy.Spider):
         self.driver.switch_to.window(self.driver.window_handles[-1])
         
         try:
-            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")))
-            brand_element = self.driver.find_element(By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")
+                )
+            )
+            brand_element = self.driver.find_element(
+                By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a"
+            )
             brand = brand_element.text
-        except NoSuchElementException:
+        except (NoSuchElementException, TimeoutException):
             brand = 'No brand'
 
         # If price_sale is "Sin Stock" or does not exist, extract price from the product page
         if price_sale == 'No sale price' or "Sin Stock" in price_sale:
             try:
-                WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-price']//div[@class='detail-price']")))
-                price = self.driver.find_element(By.XPATH, "//div[@class='product-price']//div[@class='detail-price']").text
+                WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located(
+                        (By.XPATH, "//div[@class='product-price']//div[@class='detail-price']")
+                    )
+                )
+                price = self.driver.find_element(
+                    By.XPATH, "//div[@class='product-price']//div[@class='detail-price']"
+                ).text
                 price_sale = price
-            except NoSuchElementException:
+            except (NoSuchElementException, TimeoutException):
                 price = 'No price'
-                
+                price_sale = 'No sale price'
+
         if price == '0' and price_sale != '0':
             price = price_sale
+
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
         
@@ -218,20 +253,39 @@ class FarmexSpider(scrapy.Spider):
         self.driver.switch_to.window(self.driver.window_handles[-1])
         
         try:
-            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")))
-            brand_element = self.driver.find_element(By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")
+            WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located(
+                    (By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a")
+                )
+            )
+            brand_element = self.driver.find_element(
+                By.XPATH, "//div[@class='product-availability-wrapper']//ul[@class='list-unstyled']//a"
+            )
             brand = brand_element.text
-        except NoSuchElementException:
-            brand = 'No brand'
+        except (NoSuchElementException, TimeoutException):
+            # Try alternative XPath for brand
+            try:
+                brand_element = self.driver.find_element(By.XPATH, "//div[@class='vendor']//a")
+                brand = brand_element.text
+            except (NoSuchElementException, TimeoutException):
+                brand = 'No brand'
 
         # If price_sale is "Sin Stock" or does not exist, extract price from the product page
         if price_sale == 'No sale price' or "Sin Stock" in price_sale:
             try:
-                WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.XPATH, "//div[@class='product-price']//div[@class='detail-price']")))
-                price = self.driver.find_element(By.XPATH, "//div[@class='product-price']//div[@class='detail-price']").text
-            except NoSuchElementException:
+                WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located(
+                        (By.XPATH, "//div[@class='product-price']//div[@class='detail-price']")
+                    )
+                )
+                price = self.driver.find_element(
+                    By.XPATH, "//div[@class='product-price']//div[@class='detail-price']"
+                ).text
+                price_sale = price
+            except (NoSuchElementException, TimeoutException):
                 price = 'No price'
-        
+                price_sale = 'No sale price'
+
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
         
