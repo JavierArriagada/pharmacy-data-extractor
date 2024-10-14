@@ -23,11 +23,9 @@ class CruzVerdeSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         chrome_options = Options()
-        chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
+        #chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        self.visited_urls = set()
-        self.processed_categories = set()
 
     def parse(self, response):
         self.driver.get(response.url)
@@ -56,10 +54,11 @@ class CruzVerdeSpider(scrapy.Spider):
         category_id = category['id']
         full_url = f"https://www.cruzverde.cl{category['path']}"
 
-        if full_url not in self.visited_urls and category_id not in self.processed_categories:
-            self.visited_urls.add(full_url)
-            self.processed_categories.add(category_id)
-            yield scrapy.Request(full_url, callback=self.load_category_page, meta={'category_path': new_path, 'category_id': category_id, 'category_url': full_url})
+        yield scrapy.Request(
+            full_url, 
+            callback=self.load_category_page, 
+            meta={'category_path': new_path, 'category_id': category_id, 'category_url': full_url}
+        )
 
         if 'categories' in category:
             for subcategory in category['categories']:
@@ -99,10 +98,14 @@ class CruzVerdeSpider(scrapy.Spider):
                 for product in data.get('hits', []):
                     image_link = product['image']['link']
                     # Extraer el código del producto y el código de categoría
-                    product_code, cat_code = image_link.split('/')[-1].split('-', 1)
-                    cat_code = cat_code.split('.jpg')[0]
-                    product_url = f"https://www.cruzverde.cl/{cat_code}/{product_code}.html"
-                    
+                    try:
+                        product_code, cat_code = image_link.split('/')[-1].split('-', 1)
+                        cat_code = cat_code.split('.jpg')[0]
+                        product_url = f"https://www.cruzverde.cl/{cat_code}/{product_code}.html"
+                    except Exception as e:
+                        self.logger.warning(f"Error parsing image link '{image_link}': {str(e)}")
+                        product_url = response.url  # Fallback a la URL de la categoría
+
                     loader = ItemLoader(item=ScrPharmaItem())
                     loader.add_value('brand', product.get('brand', 'Unknown Brand'))
                     loader.add_value('name', product.get('productName', 'Unknown Product Name'))
@@ -119,7 +122,6 @@ class CruzVerdeSpider(scrapy.Spider):
 
         except Exception as e:
             self.logger.error(f"Error loading category page: {str(e)}")
-
 
     def closed(self, reason):
         self.driver.quit()
