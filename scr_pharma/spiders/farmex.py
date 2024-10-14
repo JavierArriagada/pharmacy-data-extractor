@@ -24,7 +24,6 @@ class FarmexSpider(scrapy.Spider):
         chrome_options.add_argument("--headless")  # Descomentar para ejecución en modo headless
         service = Service(ChromeDriverManager().install())
         self.driver = webdriver.Chrome(service=service, options=chrome_options)
-        self.visited_urls = set()
         self.processed_categories = set()
         self.action = ActionChains(self.driver)
 
@@ -33,13 +32,13 @@ class FarmexSpider(scrapy.Spider):
 
     def parse_categories(self, response):
         self.driver.get(response.url)
-        time.sleep(2)  # Wait for JavaScript to load contents
+        time.sleep(2)  # Espera a que JavaScript cargue el contenido
         self.close_popup()
         
-        # Collect all category links
+        # Recopilar todos los enlaces de categorías
         categories = set()
         
-        # List of XPaths to collect category elements
+        # Lista de XPaths para recopilar elementos de categorías
         category_xpaths = [
             "//ul[@class='nav main-nav']//li[@class='dropdown'][1]",
             "//ul[@class='nav main-nav']//li[@class='dropdown'][2]",
@@ -49,17 +48,19 @@ class FarmexSpider(scrapy.Spider):
         ]
         
         for xpath in category_xpaths:
-            category_element = self.driver.find_element(By.XPATH, xpath)
-            # Collect all <a href=""> elements within this category element
-            a_elements = category_element.find_elements(By.XPATH, ".//a[@href]")
-            for a in a_elements:
-                category_url = a.get_attribute('href')
-                category_name =  category_url.split('/')[-1]
-                if category_url and category_url not in self.visited_urls:
-                    self.visited_urls.add(category_url)
-                    categories.add((category_name, category_url))
+            try:
+                category_element = self.driver.find_element(By.XPATH, xpath)
+                # Recopilar todos los elementos <a href=""> dentro de este elemento de categoría
+                a_elements = category_element.find_elements(By.XPATH, ".//a[@href]")
+                for a in a_elements:
+                    category_url = a.get_attribute('href')
+                    category_name = category_url.split('/')[-1]
+                    if category_url:
+                        categories.add((category_name, category_url))
+            except NoSuchElementException:
+                self.logger.warning(f"No se encontró el elemento para el XPath: {xpath}")
         
-        # Now we have collected all the category URLs, we can process them
+        # Ahora hemos recopilado todas las URLs de categorías, podemos procesarlas
         for category_name, category_url in categories:
             yield scrapy.Request(
                 url=category_url,
@@ -78,31 +79,31 @@ class FarmexSpider(scrapy.Spider):
 
     def parse_collections(self, response, category):
         self.driver.get(response.url)
-        time.sleep(2)  # Wait for JavaScript to load contents
+        time.sleep(2)  # Espera a que JavaScript cargue el contenido
         self.close_popup()
 
         page_number = 1
         while True:
-            # Extract items from the current page
+            # Extraer elementos de la página actual
             items = list(self.extract_items(category))
             
             if not items:
-                self.logger.info(f"No more products found in category {category}. Ending pagination.")
+                self.logger.info(f"No se encontraron más productos en la categoría {category}. Finalizando paginación.")
                 break
 
             for item in items:
                 yield item
 
-            # Try to navigate to the next page
+            # Intentar navegar a la siguiente página
             page_number += 1
             next_page_url = f"{response.url.split('?')[0]}?page={page_number}"
             self.driver.get(next_page_url)
-            time.sleep(2)  # Wait for the new page to load
+            time.sleep(2)  # Espera a que se cargue la nueva página
             self.close_popup()
 
-            # Check if there are products on the new page
+            # Verificar si hay productos en la nueva página
             if not self.driver.find_elements(By.XPATH, "//div[contains(@class, 'product-grid-item')]"):
-                self.logger.info(f"No more products found on page {page_number} of category {category}. Ending pagination.")
+                self.logger.info(f"No se encontraron más productos en la página {page_number} de la categoría {category}. Finalizando paginación.")
                 break
 
     def extract_items(self, category):
@@ -128,14 +129,14 @@ class FarmexSpider(scrapy.Spider):
             self.action.move_to_element(body).click().perform()
             time.sleep(1)
         except Exception as e:
-            print(f"Error closing popup: {str(e)}")
+            self.logger.debug(f"Error cerrando popup: {str(e)}")
 
     def parse_pages(self, response, category):
         self.driver.get(response.url)
-        time.sleep(2)  # Wait for JavaScript to load contents
+        time.sleep(2)  # Espera a que JavaScript cargue el contenido
         self.close_popup()
 
-        # Extract items from the single page
+        # Extraer elementos de la página única
         items = list(self.extract_page_items(category))
         
         for item in items:
@@ -150,7 +151,7 @@ class FarmexSpider(scrapy.Spider):
             product_url = 'No URL'
             product_name = 'No name'
         
-        # Extract prices and other details
+        # Extraer precios y otros detalles
         try:
             price_elements = product.find_elements(By.XPATH, ".//div[contains(@class, 'product-price')]//span")
             if len(price_elements) == 1:
@@ -169,7 +170,7 @@ class FarmexSpider(scrapy.Spider):
         price_benef = '0'  
         sku = 'No SKU'
         
-        # Open product URL to extract additional information
+        # Abrir la URL del producto para extraer información adicional
         self.driver.execute_script("window.open(arguments[0], '_blank');", product_url)
         self.driver.switch_to.window(self.driver.window_handles[-1])
         
@@ -186,7 +187,7 @@ class FarmexSpider(scrapy.Spider):
         except (NoSuchElementException, TimeoutException):
             brand = 'No brand'
 
-        # If price_sale is "Sin Stock" or does not exist, extract price from the product page
+        # Si price_sale es "Sin Stock" o no existe, extraer precio de la página del producto
         if price_sale == 'No sale price' or "Sin Stock" in price_sale:
             try:
                 WebDriverWait(self.driver, 10).until(
@@ -236,7 +237,7 @@ class FarmexSpider(scrapy.Spider):
             product_url = 'No URL'
             product_name = 'No name'
         
-        # Extract prices and other details
+        # Extraer precios y otros detalles
         try:
             price_element = product.find_element(By.XPATH, ".//span[contains(@class, 'product-compare-price')]")
             price = price_element.text
@@ -249,7 +250,7 @@ class FarmexSpider(scrapy.Spider):
         price_benef = '0'  
         sku = 'No SKU'  
         
-        # Open product URL to extract additional information
+        # Abrir la URL del producto para extraer información adicional
         self.driver.execute_script("window.open(arguments[0], '_blank');", product_url)
         self.driver.switch_to.window(self.driver.window_handles[-1])
         
@@ -264,14 +265,14 @@ class FarmexSpider(scrapy.Spider):
             )
             brand = brand_element.text
         except (NoSuchElementException, TimeoutException):
-            # Try alternative XPath for brand
+            # Intentar XPath alternativo para la marca
             try:
                 brand_element = self.driver.find_element(By.XPATH, "//div[@class='vendor']//a")
                 brand = brand_element.text
             except (NoSuchElementException, TimeoutException):
                 brand = 'No brand'
 
-        # If price_sale is "Sin Stock" or does not exist, extract price from the product page
+        # Si price_sale es "Sin Stock" o no existe, extraer precio de la página del producto
         if price_sale == 'No sale price' or "Sin Stock" in price_sale:
             try:
                 WebDriverWait(self.driver, 10).until(
