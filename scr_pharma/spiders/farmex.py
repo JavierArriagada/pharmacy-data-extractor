@@ -44,6 +44,7 @@ class FarmexSpider(scrapy.Spider):
             "//ul[@class='nav main-nav']//li[@class='dropdown'][1]",
             "//ul[@class='nav main-nav']//li[@class='dropdown'][2]",
             "//ul[@class='nav main-nav']//li[@class='dropdown'][3]",
+            "(//ul[@class='nav main-nav']//li)[176]",
             "//ul[@class='nav main-nav']//li[@class='dropdown'][5]"
         ]
         
